@@ -1,0 +1,6 @@
+webbank:
+  demo-auth:
+    enabled: true
+logging:
+  level:
+    com.webbank.shared.error: warn

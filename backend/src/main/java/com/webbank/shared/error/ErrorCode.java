@@ -21,6 +21,7 @@ public enum ErrorCode {
 	INVALID_AMOUNT(HttpStatus.UNPROCESSABLE_CONTENT, "Số tiền không hợp lệ"),
 	INSUFFICIENT_FUNDS(HttpStatus.UNPROCESSABLE_CONTENT, "Số dư khả dụng không đủ"),
 	SAME_ACCOUNT_TRANSFER(HttpStatus.UNPROCESSABLE_CONTENT, "Tài khoản nguồn và đích trùng nhau"),
+	JOURNAL_ENTRY_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy bút toán"),
 	ENTRY_ALREADY_REVERSED(HttpStatus.CONFLICT, "Bút toán đã được đảo trước đó"),
 	TRANSFER_NOT_FOUND(HttpStatus.NOT_FOUND, "Không tìm thấy giao dịch"),
 	ACCOUNT_BUSY(HttpStatus.CONFLICT, "Tài khoản đang xử lý giao dịch khác, vui lòng thử lại"),
