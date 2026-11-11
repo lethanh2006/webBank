@@ -1,0 +1,45 @@
+# Keeps the Render free-tier backend awake during working hours.
+#
+# Render free spins a service down after 15 minutes without requests, and gives the
+# whole workspace 750 instance hours per month. The workspace runs two backends
+# (webBank and ĐặtVé): keeping both up 24/7 would exhaust the hours mid-month and
+# Render would suspend them until the next month.
+# So this only pings Mon–Sat, 08:00–20:00 Vietnam time (~660 h/month for both services).
+# Outside that window the first request still wakes the service (takes 1–2 minutes).
+name: Keep Render awake
+
+on:
+  schedule:
+    - cron: '2-57/5 1-12 * * 1-6' # 08:02–19:57 Vietnam time (UTC+7), Mon–Sat
+    - cron: '37 3 * * 0'          # Sunday: renew, so GitHub doesn't disable the schedule after 60 days without commits
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  ping:
+    if: github.event.schedule != '37 3 * * 0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Ping health check
+        env:
+          URL: https://webbank-lethanh-api.onrender.com/actuator/health/readiness
+        run: |
+          # A cold start can take more than 90 seconds, so wait long and retry.
+          if curl -fsS --retry 3 --retry-delay 15 --retry-all-errors -m 100 "$URL"; then
+            echo
+          else
+            echo "::warning::Health check failed: $URL"
+          fi
+
+  renew:
+    if: github.event.schedule == '37 3 * * 0'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Re-enable the workflow to reset the 60-day inactivity timer
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/keepalive.yml/enable"
