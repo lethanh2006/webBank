@@ -1,52 +1,81 @@
-# WebBank
+# WebBank: digital banking backend in Java / Spring Boot
 
-Hệ thống ngân hàng số viết bằng **Java 21 + Spring Boot 4** và **React 19 + TypeScript**.
-Dự án tập trung vào các bài toán khó của nghiệp vụ ngân hàng thay vì CRUD: tiền phải luôn đúng
-(sổ cái kép), chống trừ tiền hai lần khi có request đồng thời, idempotency, giao dịch phân tán,
-bảo mật và khả năng quan sát hệ thống.
+A small core-banking backend (accounts, double-entry ledger, internal transfers) built to show how
+money stays correct under concurrent requests and client retries. It is not a CRUD demo: the
+interesting parts are the ledger, the locking strategy and idempotent transfers, each backed by tests
+against a real PostgreSQL.
 
-Kế hoạch và lý do chọn công nghệ: [docs/ROADMAP.md](docs/ROADMAP.md)
+- **Live demo:** https://webbank-lethanh.vercel.app (choose a demo customer at the top right).
+  The API runs on a free plan that sleeps when idle; the first request can take about a minute.
+- **API docs (Swagger UI):** https://webbank-lethanh-api.onrender.com/swagger-ui.html
+- **Tech:** Java 21, Spring Boot 4.1 (Spring MVC, Spring Data JPA / Hibernate 7), PostgreSQL 17,
+  Flyway, JUnit 6, Testcontainers, Spring Modulith, Docker, GitHub Actions; React + TypeScript UI.
 
-## Cấu trúc
+## Backend highlights
+
+| Problem | What the code does | Proof |
+| --- | --- | --- |
+| Lost history, rounding errors | Double-entry ledger: every money movement is a balanced journal entry of immutable postings; corrections are reversal entries. `Money` value object on `BigDecimal` with ISO 4217 scale; JSON amounts are strings | DB triggers reject UPDATE/DELETE on postings and reject unbalanced entries at COMMIT; invariant checks after every test |
+| Two transfers spending the same balance | `SELECT … FOR UPDATE` on both accounts, always in ascending id order, with a 5 s `lock_timeout`; `CHECK (available_balance >= 0)` as last line of defence | 100 concurrent transfers of 10,000 from 500,000: exactly 50 succeed |
+| Deadlocks (A→B while B→A) | Global lock order removes circular waits | 200 opposite-direction transfers, no deadlock (removing the ordering makes PostgreSQL report deadlocks) |
+| Client retries after a timeout | `Idempotency-Key` header: key, request hash and response stored in the same transaction as the transfer; concurrent duplicates wait on the unique index and replay the stored response | 20 concurrent requests with one key move money once |
+| Reading other customers' data (IDOR) | Ownership is part of every query; foreign accounts answer 404 | API tests per endpoint |
+| Slow statements on large accounts | Keyset (cursor) pagination with a covering index instead of `OFFSET` | Paging test: no duplicates or gaps |
+
+Other details: RFC 9457 problem details with stable error codes and a request id, Luhn check digit on
+account numbers, `open-in-view` disabled, schema owned by Flyway (`ddl-auto=validate`), module
+boundaries verified by Spring Modulith, JSON logs in production.
+
+## Architecture
 
 ```
-webbank/
-├── backend/       Spring Boot 4.1 · Java 21 · Maven · PostgreSQL · Flyway
-├── frontend/      React 19 · Vite 8 · TypeScript · Ant Design 6 · TanStack Query
-├── docs/          Kế hoạch, quyết định kiến trúc (ADR)
-└── compose.yaml   Hạ tầng local (PostgreSQL; sau này thêm Kafka, Redis, Keycloak...)
+React SPA (Vercel) --/api (same-origin rewrite)--> Spring Boot API (Render, Docker) --> PostgreSQL (Neon)
+
+com.webbank
+├── customer     customers, current-customer resolution
+├── ledger       accounts, journal entries, postings, balances, statement queries
+├── transfer     internal transfers
+├── idempotency  Idempotency-Key storage and replay
+├── shared       Money, error model, request id, business calendar
+└── demo         demo data and identity ("demo" profile only)
 ```
 
-## Chạy local
+## REST API (v1)
 
-Cần JDK 21, Node.js 22+ và Docker.
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/api/v1/accounts` | Accounts of the current customer |
+| GET | `/api/v1/accounts/{accountNo}` | One account (404 if not owned) |
+| GET | `/api/v1/accounts/{accountNo}/transactions?cursor=&size=` | Statement, newest first |
+| GET | `/api/v1/account-holders/{accountNo}` | Holder name shown before confirming a transfer |
+| POST | `/api/v1/transfers` (header `Idempotency-Key`) | Internal transfer, 201 + `Location` |
+| GET | `/api/v1/transfers/{reference}` | One transfer of the current customer |
+
+Authentication is simplified for the demo: the caller is identified by the `X-Demo-Customer-Id`
+header (enabled only by the `demo` profile).
+
+## Run locally
+
+Requires JDK 21, Node.js 22+ and Docker.
 
 ```bash
-docker compose up -d                        # PostgreSQL ở cổng 5433
-cd backend && ./mvnw spring-boot:run        # API ở cổng 8081
-cd frontend && npm install && npm run dev   # http://localhost:5173
+docker compose up -d                          # PostgreSQL on port 5433
+cd backend && ./mvnw spring-boot:run          # API on port 8081, Swagger at /swagger-ui.html
+cd frontend && npm install && npm run dev     # http://localhost:5173
 ```
 
-Muốn chạy backend mà không cần compose thì dùng `./mvnw spring-boot:test-run`: Testcontainers sẽ
-tự bật một PostgreSQL tạm.
+`./mvnw spring-boot:test-run` starts the API with a throwaway PostgreSQL from Testcontainers instead.
+Note: Vite's dev server does not work when the project path contains `#`.
 
-| Thành phần   | Địa chỉ                                    |
-| ------------ | ------------------------------------------ |
-| Frontend     | http://localhost:5173                      |
-| API          | http://localhost:8081/api/v1               |
-| Swagger UI   | http://localhost:8081/swagger-ui.html      |
-| Health check | http://localhost:8081/actuator/health      |
-| PostgreSQL   | `localhost:5433`, db/user/pass: `webbank`  |
-
-Ở môi trường dev, frontend gọi `/api/...` qua proxy của Vite nên không cần cấu hình CORS.
-
-> **Lưu ý:** đường dẫn tới thư mục dự án không được chứa ký tự `#`. Vite dev server hiểu `#` là phần
-> fragment của URL nên không phục vụ được module nào, và trình duyệt chỉ hiện trang trắng. Backend và
-> `npm run build` không bị ảnh hưởng.
-
-## Kiểm thử
+## Tests
 
 ```bash
-cd backend && ./mvnw verify                    # cần Docker để chạy Testcontainers
-cd frontend && npm run build && npm run lint
+cd backend && ./mvnw verify    # unit tests (Surefire) + integration tests on PostgreSQL (Failsafe, needs Docker)
+cd frontend && npm run lint && npm run build
 ```
+
+## Documentation (Vietnamese)
+
+- [docs/tech/](docs/tech/README.md): why each technology was chosen over its alternatives
+  (Kafka vs RabbitMQ, PostgreSQL vs Oracle, locking strategies, outbox, saga...).
+- [docs/ROADMAP.md](docs/ROADMAP.md): technical roadmap and interview notes.

@@ -1,5 +1,9 @@
 # WebBank: kế hoạch kỹ thuật và lựa chọn công nghệ
 
+> **Trạng thái (11/2026):** giai đoạn 0–1 đã xong và đã deploy (sổ cái kép, khóa có thứ tự,
+> idempotency, sao kê phân trang keyset, giao diện chuyển tiền). Phạm vi được giữ ở mức phù hợp
+> vị trí thực tập Java Backend; các giai đoạn 2–6 bên dưới là hướng mở rộng, không bắt buộc.
+
 Mục tiêu là một dự án đủ nhỏ để một người làm xong, nhưng mỗi tính năng đều giải một bài toán thật
 của ngân hàng và **có bằng chứng** đi kèm (test, demo, số liệu). Dự án không cố gắng có nhiều màn
 hình CRUD.
