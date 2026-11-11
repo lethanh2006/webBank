@@ -11,3 +11,6 @@ Thumbs.db
 !.env.example
 
 # backend/ and frontend/ have their own .gitignore for build output
+
+# Personal documents (CV, job descriptions) do not belong in this public repo
+*.pdf
