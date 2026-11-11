@@ -3,10 +3,16 @@
 spring:
   application:
     name: webbank
+  profiles:
+    default: dev               # local runs get the dev profile; production sets SPRING_PROFILES_ACTIVE
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5433/webbank}
     username: ${DB_USERNAME:webbank}
     password: ${DB_PASSWORD:webbank}
+    hikari:
+      # Never wait forever for a row lock: fail fast and let the client retry
+      # with the same Idempotency-Key.
+      connection-init-sql: SET lock_timeout = '5s'
   jpa:
     open-in-view: false        # no lazy loading during view rendering; keep transactions short
     hibernate:
@@ -22,6 +28,10 @@ spring:
 server:
   port: ${SERVER_PORT:8081}
 
+logging:
+  pattern:
+    correlation: "[%X{requestId:-}] "
+
 management:
   endpoints:
     web:
@@ -34,3 +44,9 @@ management:
 
 springdoc:
   paths-to-match: /api/**
+
+webbank:
+  # Phase 1 only: identifies the caller from the X-Demo-Customer-Id header.
+  # Replaced by Keycloak JWT authentication in phase 2.
+  demo-auth:
+    enabled: false

@@ -1,0 +1,5 @@
+# JSON logs (Elastic Common Schema) for log shipping; MDC fields such as requestId are included.
+logging:
+  structured:
+    format:
+      console: ecs
