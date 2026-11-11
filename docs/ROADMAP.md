@@ -76,6 +76,10 @@ cũng là câu trả lời cho câu hỏi kinh điển "Tại sao không dùng m
 
 ## 3. Công nghệ và lý do chọn
 
+Bảng dưới chỉ tóm tắt. Phân tích bản chất từng công nghệ, so sánh với các phương án thay thế (ví dụ
+Kafka so với RabbitMQ, ActiveMQ, IBM MQ, Pulsar) và câu hỏi phỏng vấn kèm ý trả lời nằm trong
+[docs/tech/](tech/README.md).
+
 ### Backend
 
 | Công nghệ | Dùng để | Vì sao (nhìn từ góc độ ngân hàng) |
