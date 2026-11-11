@@ -13,7 +13,8 @@ WORKDIR /app
 RUN addgroup -S app && adduser -S app -G app
 COPY --from=build /workspace/target/webbank-backend-*.jar app.jar
 USER app
-# Size the heap from the container memory limit (free tiers give ~512 MB).
-ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:+UseSerialGC"
+# Free tiers give ~512 MB: keep the heap at 60% of it (metaspace and thread stacks need the rest),
+# a single-threaded GC and C1-only JIT for a faster start and a smaller footprint.
+ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=60 -XX:+UseSerialGC -XX:TieredStopAtLevel=1 -Xss512k"
 EXPOSE 8081
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
