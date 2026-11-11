@@ -3,3 +3,10 @@ logging:
   structured:
     format:
       console: ecs
+
+spring:
+  datasource:
+    hikari:
+      # Small free-tier database: a few connections are plenty for a demo.
+      maximum-pool-size: 5
+      minimum-idle: 1

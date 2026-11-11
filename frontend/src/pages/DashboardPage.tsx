@@ -27,7 +27,17 @@ export function DashboardPage() {
       ) : accounts.isPending ? (
         <Skeleton active />
       ) : accounts.isError ? (
-        <Alert type="error" showIcon title="Không tải được danh sách tài khoản" description={accounts.error.message} />
+        <Alert
+          type="error"
+          showIcon
+          title="Không tải được danh sách tài khoản"
+          description={accounts.error.message}
+          action={
+            <Button size="small" onClick={() => void accounts.refetch()}>
+              Thử lại
+            </Button>
+          }
+        />
       ) : (
         <Row gutter={[16, 16]}>
           {accounts.data.map((account) => (

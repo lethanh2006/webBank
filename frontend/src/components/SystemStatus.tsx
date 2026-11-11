@@ -12,8 +12,14 @@ export function SystemStatus() {
         status="error"
         text={
           <Typography.Text type="danger">
-            Không kết nối được backend. Hãy chạy <code>docker compose up -d</code> và{' '}
-            <code>./mvnw spring-boot:run</code>.
+            {import.meta.env.DEV ? (
+              <>
+                Không kết nối được backend. Hãy chạy <code>docker compose up -d</code> và{' '}
+                <code>./mvnw spring-boot:run</code>.
+              </>
+            ) : (
+              'Máy chủ demo (gói miễn phí) đang khởi động sau thời gian nghỉ, thường mất khoảng 1 phút. Trang sẽ tự kết nối lại.'
+            )}
           </Typography.Text>
         }
       />

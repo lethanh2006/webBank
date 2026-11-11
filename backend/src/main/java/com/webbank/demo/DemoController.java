@@ -13,11 +13,11 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-/** Dev profile only: lets the frontend switch between demo customers until login exists. */
+/** "demo" profile only: lets the frontend switch between demo customers until login exists. */
 @RestController
-@Profile("dev")
+@Profile("demo")
 @RequestMapping("/api/v1/demo")
-@Tag(name = "Demo (dev profile only)")
+@Tag(name = "Demo")
 class DemoController {
 
 	private final CustomerService customers;

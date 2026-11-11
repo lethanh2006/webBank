@@ -4,7 +4,9 @@ spring:
   application:
     name: webbank
   profiles:
-    default: dev               # local runs get the dev profile; production sets SPRING_PROFILES_ACTIVE
+    default: dev               # local runs get the dev profile; deployments set SPRING_PROFILES_ACTIVE
+    group:
+      dev: demo                # dev always includes the demo data and the demo identity header
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5433/webbank}
     username: ${DB_USERNAME:webbank}
@@ -26,7 +28,7 @@ spring:
       enabled: true            # errors as RFC 9457 application/problem+json
 
 server:
-  port: ${SERVER_PORT:8081}
+  port: ${PORT:${SERVER_PORT:8081}}   # PORT is injected by hosting platforms such as Render
 
 logging:
   pattern:
@@ -46,7 +48,7 @@ springdoc:
   paths-to-match: /api/**
 
 webbank:
-  # Phase 1 only: identifies the caller from the X-Demo-Customer-Id header.
-  # Replaced by Keycloak JWT authentication in phase 2.
+  # Demo identity: the caller is chosen with the X-Demo-Customer-Id header.
+  # Enabled by the "demo" profile; a real deployment would use JWT authentication.
   demo-auth:
     enabled: false

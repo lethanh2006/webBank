@@ -25,7 +25,7 @@ import org.springframework.transaction.support.TransactionTemplate;
  * posted through the ledger, never balances written directly, so the invariants hold.
  */
 @Component
-@Profile("dev")
+@Profile("demo")
 class DemoDataLoader implements ApplicationRunner {
 
 	private static final Logger log = LoggerFactory.getLogger(DemoDataLoader.class);
