@@ -1,0 +1,25 @@
+# Local infrastructure for development: docker compose up -d
+# Kafka, Redis, Keycloak, observability stack... are added here as the roadmap progresses.
+name: webbank
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: webbank-postgres
+    environment:
+      POSTGRES_DB: webbank
+      POSTGRES_USER: webbank
+      POSTGRES_PASSWORD: webbank
+      TZ: UTC
+    ports:
+      - "5433:5432" # host 5432 is often taken by a local PostgreSQL
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U webbank -d webbank"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-data:

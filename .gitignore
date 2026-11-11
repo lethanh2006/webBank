@@ -1,0 +1,13 @@
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.iml
+
+# Local secrets (commit an .env.example instead)
+.env
+.env.*
+!.env.example
+
+# backend/ and frontend/ have their own .gitignore for build output

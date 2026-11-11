@@ -1,0 +1,36 @@
+# Environment-specific and sensitive values come from environment variables (12-factor).
+# The defaults below are for local development only (see ../compose.yaml).
+spring:
+  application:
+    name: webbank
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/webbank}
+    username: ${DB_USERNAME:webbank}
+    password: ${DB_PASSWORD:webbank}
+  jpa:
+    open-in-view: false        # no lazy loading during view rendering; keep transactions short
+    hibernate:
+      ddl-auto: validate       # schema is owned by Flyway; Hibernate only checks it
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC       # persist timestamps in UTC, convert at the edges
+  mvc:
+    problemdetails:
+      enabled: true            # errors as RFC 9457 application/problem+json
+
+server:
+  port: ${SERVER_PORT:8081}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true          # /actuator/health/liveness and /readiness
+
+springdoc:
+  paths-to-match: /api/**
