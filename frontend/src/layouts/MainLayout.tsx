@@ -1,15 +1,20 @@
-import { BankOutlined, DashboardOutlined } from '@ant-design/icons'
-import { Layout, Menu, Typography, theme } from 'antd'
+import { BankOutlined, DashboardOutlined, SwapOutlined } from '@ant-design/icons'
+import { Layout, Menu, theme } from 'antd'
 import { Outlet, useLocation, useNavigate } from 'react-router'
+import { CustomerSwitcher } from '@/components/CustomerSwitcher'
 
 const { Header, Sider, Content } = Layout
 
-const menuItems = [{ key: '/', icon: <DashboardOutlined />, label: 'Tổng quan' }]
+const menuItems = [
+  { key: '/', icon: <DashboardOutlined />, label: 'Tổng quan' },
+  { key: '/transfer', icon: <SwapOutlined />, label: 'Chuyển tiền' },
+]
 
 export function MainLayout() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const { token } = theme.useToken()
+  const selectedKey = pathname.startsWith('/transfer') ? '/transfer' : '/'
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
@@ -30,7 +35,7 @@ export function MainLayout() {
         </div>
         <Menu
           mode="inline"
-          selectedKeys={[pathname]}
+          selectedKeys={[selectedKey]}
           items={menuItems}
           onClick={({ key }) => void navigate(key)}
         />
@@ -40,14 +45,13 @@ export function MainLayout() {
           style={{
             display: 'flex',
             alignItems: 'center',
+            justifyContent: 'flex-end',
             paddingInline: 24,
             background: token.colorBgContainer,
             borderBottom: `1px solid ${token.colorBorderSecondary}`,
           }}
         >
-          <Typography.Title level={4} style={{ margin: 0 }}>
-            Ngân hàng số WebBank
-          </Typography.Title>
+          <CustomerSwitcher />
         </Header>
         <Content style={{ padding: 24 }}>
           <Outlet />

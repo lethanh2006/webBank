@@ -1,44 +1,44 @@
-import { Alert, Card, Descriptions, Skeleton, Tag } from 'antd'
-import dayjs from 'dayjs'
-import { usePing } from '@/features/system/api'
+import { SwapOutlined } from '@ant-design/icons'
+import { Alert, Button, Col, Flex, Row, Skeleton, Typography } from 'antd'
+import { useNavigate } from 'react-router'
+import { AccountCard } from '@/components/AccountCard'
+import { SystemStatus } from '@/components/SystemStatus'
+import { useAccounts } from '@/features/accounts/api'
+import { useDemoCustomerId } from '@/lib/demoIdentity'
 
 export function DashboardPage() {
-  const ping = usePing()
+  const customerId = useDemoCustomerId()
+  const accounts = useAccounts()
+  const navigate = useNavigate()
 
   return (
-    <Card title="Trạng thái hệ thống" style={{ maxWidth: 560 }}>
-      {ping.isPending ? (
-        <Skeleton active paragraph={{ rows: 2 }} />
-      ) : ping.isError ? (
-        <Alert
-          type="error"
-          showIcon
-          title="Không kết nối được backend"
-          description={
-            <>
-              {ping.error.message}. Hãy chạy <code>docker compose up -d</code> rồi{' '}
-              <code>cd backend &amp;&amp; ./mvnw spring-boot:run</code>.
-            </>
-          }
-        />
+    <Flex vertical gap={24}>
+      <Flex justify="space-between" align="center" wrap gap={12}>
+        <Typography.Title level={4} style={{ margin: 0 }}>
+          Tài khoản của bạn
+        </Typography.Title>
+        <Button type="primary" icon={<SwapOutlined />} onClick={() => void navigate('/transfer')}>
+          Chuyển tiền
+        </Button>
+      </Flex>
+
+      {!customerId ? (
+        <Alert type="info" showIcon title="Chọn một khách hàng demo ở góc trên bên phải để bắt đầu." />
+      ) : accounts.isPending ? (
+        <Skeleton active />
+      ) : accounts.isError ? (
+        <Alert type="error" showIcon title="Không tải được danh sách tài khoản" description={accounts.error.message} />
       ) : (
-        <Descriptions
-          column={1}
-          items={[
-            {
-              key: 'status',
-              label: 'Backend',
-              children: <Tag color="success">{ping.data.status}</Tag>,
-            },
-            { key: 'service', label: 'Service', children: ping.data.service },
-            {
-              key: 'time',
-              label: 'Giờ máy chủ',
-              children: dayjs(ping.data.serverTime).format('HH:mm:ss DD/MM/YYYY'),
-            },
-          ]}
-        />
+        <Row gutter={[16, 16]}>
+          {accounts.data.map((account) => (
+            <Col key={account.accountNo} xs={24} md={12} xl={8}>
+              <AccountCard account={account} />
+            </Col>
+          ))}
+        </Row>
       )}
-    </Card>
+
+      <SystemStatus />
+    </Flex>
   )
 }
