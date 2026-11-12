@@ -53,7 +53,6 @@ export function useAccount(accountNo: string) {
     queryKey: ['accounts', customerId, accountNo],
     queryFn: async () => (await http.get<Account>(path(accountNo))).data,
     enabled: customerId !== null,
-    retry: false,
   })
 }
 
@@ -71,7 +70,6 @@ export function useTransactions(accountNo: string) {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
     enabled: customerId !== null,
-    retry: false,
   })
 }
 
