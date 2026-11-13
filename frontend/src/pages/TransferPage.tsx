@@ -1,8 +1,10 @@
 import { App, Alert, Button, Card, Descriptions, Flex, Form, Input, InputNumber, Result, Select, Steps, Tag, Typography } from 'antd'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
-import { type AccountHolder, lookupHolder, useAccounts } from '@/features/accounts/api'
-import { type TransferRequest, type TransferResult, useCreateTransfer } from '@/features/transfers/api'
+import { lookupHolder, useAccounts } from '@/features/accounts/api'
+import { type TransferResult, useCreateTransfer } from '@/features/transfers/api'
+import { type TransferDraft, clearTransferDraft, readTransferDraft, saveTransferDraft } from '@/features/transfers/draftStore'
+import { useDemoCustomerId } from '@/lib/demoIdentity'
 import { ApiError } from '@/lib/http'
 import { formatAccountNo, formatMoney, groupThousands, ungroupThousands } from '@/lib/money'
 
@@ -13,16 +15,11 @@ interface FormValues {
   description?: string
 }
 
-interface Draft {
-  request: TransferRequest
-  holder: AccountHolder
-  /** One key per transfer intent, reused by every retry of that intent. */
-  idempotencyKey: string
-}
-
 export function TransferPage() {
-  const [step, setStep] = useState(0)
-  const [draft, setDraft] = useState<Draft>()
+  const customerId = useDemoCustomerId()
+  const [draft, setDraft] = useState<TransferDraft | undefined>(() => readTransferDraft(customerId))
+  const [step, setStep] = useState(draft ? 1 : 0)
+  const [now, setNow] = useState(Date.now)
   const [result, setResult] = useState<TransferResult>()
   const [form] = Form.useForm<FormValues>()
   const [checking, setChecking] = useState(false)
@@ -30,12 +27,19 @@ export function TransferPage() {
   const transfer = useCreateTransfer()
   const navigate = useNavigate()
   const { message } = App.useApp()
+  const draftCreatedAt = draft?.createdAt
+
+  useEffect(() => {
+    if (draftCreatedAt === undefined) return
+    const timer = setTimeout(() => setNow(Date.now()), Math.max(0, draftCreatedAt + 24 * 60 * 60 * 1000 - Date.now()))
+    return () => clearTimeout(timer)
+  }, [draftCreatedAt])
 
   const reviewTransfer = async (values: FormValues) => {
     setChecking(true)
     try {
       const holder = await lookupHolder(values.destinationAccountNo)
-      setDraft({
+      const nextDraft: TransferDraft = {
         request: {
           sourceAccountNo: values.sourceAccountNo,
           destinationAccountNo: values.destinationAccountNo,
@@ -44,7 +48,12 @@ export function TransferPage() {
         },
         holder,
         idempotencyKey: crypto.randomUUID(),
-      })
+        createdAt: Date.now(),
+        submitted: false,
+      }
+      if (!customerId) return
+      saveTransferDraft(customerId, nextDraft)
+      setDraft(nextDraft)
       transfer.reset()
       setStep(1)
     } catch (error) {
@@ -60,11 +69,18 @@ export function TransferPage() {
   }
 
   const confirm = () => {
-    if (!draft) return
+    if (!draft || !customerId) return
+    if (Date.now() - draft.createdAt >= 24 * 60 * 60 * 1000) {
+      setNow(Date.now())
+      return
+    }
     // Same key on every click: if the first attempt reached the server, a retry
     // returns its stored result instead of moving the money a second time.
+    const submitted = { ...draft, submitted: true }
+    saveTransferDraft(customerId, submitted)
+    setDraft(submitted)
     transfer.mutate(
-      { request: draft.request, idempotencyKey: draft.idempotencyKey },
+      { customerId, request: draft.request, idempotencyKey: draft.idempotencyKey },
       {
         onSuccess: (value) => {
           setResult(value)
@@ -75,6 +91,7 @@ export function TransferPage() {
   }
 
   const startOver = () => {
+    if (customerId) clearTransferDraft(customerId)
     form.resetFields()
     transfer.reset()
     setDraft(undefined)
@@ -83,6 +100,23 @@ export function TransferPage() {
   }
 
   const error = transfer.error instanceof ApiError ? transfer.error : undefined
+  const unresolved = draft?.submitted && (!error || error.retryable)
+  // The server retains keys for 24 hours. Never resubmit an older stored intent automatically.
+  const expired = draft !== undefined && now - draft.createdAt >= 24 * 60 * 60 * 1000
+
+  if (expired && step === 1) {
+    return (
+      <Result
+        status="warning"
+        title="Giao dịch cũ cần được đối chiếu"
+        subTitle="Yêu cầu đã quá thời gian thử lại an toàn. Hãy kiểm tra sao kê trước khi tạo giao dịch mới."
+        extra={[
+          <Button key="statement" onClick={() => void navigate(`/accounts/${draft.request.sourceAccountNo}`)}>Xem sao kê</Button>,
+          <Button key="new" onClick={startOver}>Đã kiểm tra, tạo giao dịch mới</Button>,
+        ]}
+      />
+    )
+  }
 
   return (
     <Card style={{ maxWidth: 720 }}>
@@ -184,16 +218,25 @@ export function TransferPage() {
             />
           )}
 
+          {unresolved && !error && !transfer.isPending && (
+            <Alert
+              type="warning"
+              showIcon
+              title="Giao dịch trước chưa xác định được kết quả"
+              description="Bấm Thử lại để lấy kết quả bằng cùng mã chống trùng. Không tạo giao dịch mới cho đến khi đã đối chiếu."
+            />
+          )}
+
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             Idempotency-Key: <Typography.Text code>{draft.idempotencyKey}</Typography.Text>
           </Typography.Text>
 
           <Flex gap={12} justify="end" wrap>
-            <Button onClick={() => setStep(0)} disabled={transfer.isPending}>
+            <Button onClick={() => setStep(0)} disabled={transfer.isPending || unresolved}>
               Quay lại
             </Button>
             <Button type="primary" loading={transfer.isPending} onClick={confirm}>
-              {error?.retryable ? 'Thử lại' : 'Xác nhận chuyển tiền'}
+              {unresolved ? 'Thử lại' : 'Xác nhận chuyển tiền'}
             </Button>
           </Flex>
         </Flex>

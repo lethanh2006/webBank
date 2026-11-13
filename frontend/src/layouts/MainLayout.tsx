@@ -1,7 +1,8 @@
 import { BankOutlined, DashboardOutlined, SwapOutlined } from '@ant-design/icons'
 import { Layout, Menu, theme } from 'antd'
-import { Outlet, useLocation, useNavigate } from 'react-router'
+import { useLocation, useNavigate } from 'react-router'
 import { CustomerSwitcher } from '@/components/CustomerSwitcher'
+import { DemoAccess } from '@/components/DemoAccess'
 
 const { Header, Sider, Content } = Layout
 
@@ -54,7 +55,7 @@ export function MainLayout() {
           <CustomerSwitcher />
         </Header>
         <Content style={{ padding: 24 }}>
-          <Outlet />
+          <DemoAccess />
         </Content>
       </Layout>
     </Layout>

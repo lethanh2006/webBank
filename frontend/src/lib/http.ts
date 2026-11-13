@@ -48,7 +48,7 @@ http.interceptors.request.use((config) => {
   const requestId = globalThis.crypto?.randomUUID?.()
   if (requestId) config.headers.set('X-Request-Id', requestId)
   const customerId = getDemoCustomerId()
-  if (customerId) config.headers.set('X-Demo-Customer-Id', customerId)
+  if (customerId && !config.headers.has('X-Demo-Customer-Id')) config.headers.set('X-Demo-Customer-Id', customerId)
   return config
 })
 
