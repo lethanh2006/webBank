@@ -10,7 +10,8 @@ export interface DemoCustomer {
 export function useDemoCustomers() {
   return useQuery({
     queryKey: ['demo', 'customers'],
-    queryFn: async () => (await http.get<DemoCustomer[]>('/demo/customers')).data,
-    staleTime: Infinity,
+    queryFn: async ({ signal }) => (await http.get<DemoCustomer[]>('/demo/customers', { signal })).data,
+    staleTime: 30_000,
+    refetchOnWindowFocus: true,
   })
 }

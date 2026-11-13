@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { http } from '@/lib/http'
 import type { MoneyView } from '@/lib/money'
+import { clearTransferDraft } from './draftStore'
 
 export interface TransferRequest {
   sourceAccountNo: string
@@ -35,19 +36,22 @@ export interface TransferResult {
 export function useCreateTransfer() {
   const queryClient = useQueryClient()
   return useMutation({
+    mutationKey: ['transfers'],
     mutationFn: async (variables: {
+      customerId: string
       request: TransferRequest
       idempotencyKey: string
     }): Promise<TransferResult> => {
       const response = await http.post<Transfer>('/transfers', variables.request, {
-        headers: { 'Idempotency-Key': variables.idempotencyKey },
+        headers: { 'Idempotency-Key': variables.idempotencyKey, 'X-Demo-Customer-Id': variables.customerId },
       })
       return {
         transfer: response.data,
         replayed: response.headers['idempotent-replayed'] === 'true',
       }
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
+      clearTransferDraft(variables.customerId)
       void queryClient.invalidateQueries({ queryKey: ['accounts'] })
       void queryClient.invalidateQueries({ queryKey: ['transactions'] })
     },

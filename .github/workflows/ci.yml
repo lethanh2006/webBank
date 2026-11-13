@@ -2,7 +2,6 @@ name: CI
 
 on:
   push:
-    branches: [main]
   pull_request:
 
 concurrency:
@@ -37,6 +36,26 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
       - run: npm ci
       - run: npm run lint
-      - run: npm run build
+      - run: ../backend/mvnw -B -f ../backend/pom.xml -DskipTests package
+      - run: docker compose -f ../compose.yaml up -d --wait postgres
+      - name: Start local demo API
+        run: |
+          java -jar ../backend/target/webbank-backend-0.0.1-SNAPSHOT.jar > /tmp/webbank-api.log 2>&1 &
+          for attempt in {1..60}; do
+            if curl -fsS http://localhost:8081/actuator/health/readiness; then
+              exit 0
+            fi
+            sleep 1
+          done
+          cat /tmp/webbank-api.log
+          exit 1
+      - run: npx playwright install --with-deps chromium
+      # Playwright builds the frontend and tests recovery plus real API/database transfers.
+      - run: npm run test:e2e

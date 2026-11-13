@@ -26,3 +26,7 @@ dist-ssr
 # Vercel CLI project link
 .vercel
 .env*
+
+# Browser test output
+test-results/
+playwright-report/

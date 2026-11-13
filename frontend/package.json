@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "npm run build && vite preview --host 127.0.0.1",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.4",
@@ -20,6 +22,7 @@
     "react-router": "^8.5.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.0",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

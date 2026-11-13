@@ -20,7 +20,7 @@ against a real PostgreSQL.
 | Deadlocks (A→B while B→A) | Global lock order removes circular waits | 200 opposite-direction transfers, no deadlock (removing the ordering makes PostgreSQL report deadlocks) |
 | Client retries after a timeout | `Idempotency-Key` header: key, request hash and response stored in the same transaction as the transfer; concurrent duplicates wait on the unique index and replay the stored response | 20 concurrent requests with one key move money once |
 | Reading other customers' data (IDOR) | Ownership is part of every query; foreign accounts answer 404 | API tests per endpoint |
-| Slow statements on large accounts | Keyset (cursor) pagination with a covering index instead of `OFFSET` | Paging test: no duplicates or gaps |
+| Slow statements on large accounts | Keyset (cursor) pagination using the `(account_id, id DESC)` index instead of `OFFSET` | Paging test: no duplicates or gaps |
 
 Other details: RFC 9457 problem details with stable error codes and a request id, Luhn check digit on
 account numbers, `open-in-view` disabled, schema owned by Flyway (`ddl-auto=validate`), module
@@ -58,14 +58,31 @@ header (enabled only by the `demo` profile).
 
 Requires JDK 21, Node.js 22+ and Docker.
 
+Start PostgreSQL, then run the backend and frontend in separate terminals:
+
 ```bash
-docker compose up -d                          # PostgreSQL on port 5433
-cd backend && ./mvnw spring-boot:run          # API on port 8081, Swagger at /swagger-ui.html
-cd frontend && npm install && npm run dev     # http://localhost:5173
+docker compose up -d --wait postgres          # PostgreSQL on port 5433
 ```
 
+```bash
+cd backend
+./mvnw spring-boot:run                        # API on port 8081, Swagger at /swagger-ui.html
+```
+
+```bash
+cd frontend
+npm ci
+npm start                                   # build + preview at http://localhost:4173
+```
+
+The default local `dev` profile includes `demo`: the first start creates three customers and four
+funded accounts through real ledger postings. The UI selects the first customer automatically.
+Use the switcher to see another customer's account number, then return to the sender to transfer.
+All money in this project is simulated.
+
 `./mvnw spring-boot:test-run` starts the API with a throwaway PostgreSQL from Testcontainers instead.
-Note: Vite's dev server does not work when the project path contains `#`.
+For hot reload, use `npm run dev` at http://localhost:5173 from a path without `#`.
+`npm start` and the browser tests serve the built app, so they also work in paths containing `#`.
 
 ## Tests
 
@@ -73,6 +90,25 @@ Note: Vite's dev server does not work when the project path contains `#`.
 cd backend && ./mvnw verify    # unit tests (Surefire) + integration tests on PostgreSQL (Failsafe, needs Docker)
 cd frontend && npm run lint && npm run build
 ```
+
+For browser tests, keep the local API running on port 8081:
+
+```bash
+cd frontend
+npx playwright install chromium
+npm run test:e2e
+```
+
+There are **44 backend tests** (19 in Surefire, 25 in Failsafe) plus **9 browser tests**.
+The browser suite verifies empty/error recovery, cold-start retries, customer switching, and a real
+transfer followed by idempotent replay, balance checks and statement inspection. They also cover
+pending submissions, failed background refreshes, restored retry keys and expired drafts. The real-API test
+uses the local API and changes the local demo balances by 1,000 VND. Reviewed drafts are kept per
+customer in session storage; ambiguous submissions retain their key for safe retries. CI runs on every push and pull
+request, starts its own local API/PostgreSQL, and runs both suites.
+
+If demo customers cannot load, the UI explains the state and offers **Thử lại**. A successful ping
+alone does not establish that demo data is available. See [the CV verification and demo guide](docs/CV-VERIFICATION.md).
 
 ## Documentation (Vietnamese)
 
